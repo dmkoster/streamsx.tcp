@@ -12,6 +12,15 @@ CXXFLAGS=-O3 -DNDEBUG -fPIC
 
 all: lib/libstreams.spl.multiconnection.tcp.server.so
 
+lib/socket.o: src/mcts/socket.cpp include/mcts/socket.h 
+	mkdir   -p    ./lib
+	@echo Compiling 'src/mcts/socket.cpp' ...
+	@g++ -Wall $(CXXFLAGS) -I include $(SPL_INCLUDE_OPTIONS) -c src/mcts/socket.cpp -o $@ 
+
+lib/tls_socket.o: src/mcts/tls_socket.cpp include/mcts/tls_socket.h 
+	@echo Compiling 'src/mcts/tls_socket.cpp' ...
+	@g++ -Wall $(CXXFLAGS) -I include $(SPL_INCLUDE_OPTIONS) -c src/mcts/tls_socket.cpp -o $@ 
+
 lib/server.o: src/mcts/server.cpp \
 	      include/mcts/server.h \
 	      include/mcts/acceptor.h \
@@ -21,7 +30,6 @@ lib/server.o: src/mcts/server.cpp \
 	      include/mcts/info_handler.h \
 	      include/mcts/metrics_handler.h 
 	@echo Compiling 'src/mcts/server.cpp' ...
-	mkdir   -p    ./lib
 	@g++ -Wall $(CXXFLAGS) -I include $(SPL_INCLUDE_OPTIONS) -c src/mcts/server.cpp -o $@ 
 
 lib/acceptor.o: src/mcts/acceptor.cpp \
@@ -39,14 +47,6 @@ lib/connection.o: src/mcts/connection.cpp \
 	  		include/mcts/info_handler.h
 	@echo Compiling 'src/mcts/connection.cpp' ...
 	@g++ -Wall $(CXXFLAGS) -I include $(SPL_INCLUDE_OPTIONS) -c src/mcts/connection.cpp -o $@ 
-
-lib/socket.o: src/mcts/socket.cpp include/mcts/socket.h 
-	@echo Compiling 'src/mcts/socket.cpp' ...
-	@g++ -Wall $(CXXFLAGS) -I include $(SPL_INCLUDE_OPTIONS) -c src/mcts/socket.cpp -o $@ 
-
-lib/tls_socket.o: src/mcts/tls_socket.cpp include/mcts/tls_socket.h 
-	@echo Compiling 'src/mcts/tls_socket.cpp' ...
-	@g++ -Wall $(CXXFLAGS) -I include $(SPL_INCLUDE_OPTIONS) -c src/mcts/tls_socket.cpp -o $@ 
 
 lib/data_handler.o: src/mcts/data_handler.cpp include/mcts/data_item.h 
 	@echo Compiling 'src/mcts/data_handler.cpp' ...
