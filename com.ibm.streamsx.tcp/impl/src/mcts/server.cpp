@@ -40,8 +40,10 @@ namespace mcts
                          DataHandler::Handler dHandler,
                          AsyncDataItem::Handler eHandler,
                          InfoHandler::Handler iHandler,
-                         MetricsHandler::Handler mHandler)
-        : threadPoolSize_(threadPoolSize),
+                         MetricsHandler::Handler mHandler,
+                         ConnectionSecurity secType)
+        : securityType_(secType),
+          threadPoolSize_(threadPoolSize),
           maxConnections_(maxConnections),
           maxUnreadResponseCount_(maxUnreadResponseCount),
           blockSize_(blockSize),
@@ -146,8 +148,7 @@ namespace mcts
         		}
         	}
 
-          ConnectionSecurity secType = NONE;
-        	acceptor->nextConnection().reset(new TCPConnection(secType, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_));
+        	acceptor->nextConnection().reset(new TCPConnection(securityType_, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_));
           acceptor->getAcceptor().async_accept(acceptor->nextConnection()->socket()->getUnderlyingSocket(),
             streams_boost::bind(&TCPServer::handleAccept, this, acceptor, streams_boost::asio::placeholders::error));
         }
@@ -272,8 +273,7 @@ namespace mcts
 	  {
     	TCPAcceptorPtr acceptor(new TCPAcceptor(ioServicePool_.get_io_service(), address, port));
 
-      ConnectionSecurity secType = TLS;
-    	acceptor->nextConnection().reset(new TCPConnection(secType, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_));
+    	acceptor->nextConnection().reset(new TCPConnection(securityType_, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_));
 		  acceptor->getAcceptor().async_accept(acceptor->nextConnection()->socket()->getUnderlyingSocket(),
 								   streams_boost::bind(&TCPServer::handleAccept, this, acceptor,
 													   streams_boost::asio::placeholders::error));
