@@ -1,3 +1,10 @@
+/*
+#######################################################################
+# Copyright (C)2016, International Business Machines Corporation and
+# others. All Rights Reserved.
+#######################################################################
+*/
+
 #ifndef MULTI_CONNECTION_TCP_SERVER_SOCKET_TLS
 #define MULTI_CONNECTION_TCP_SERVER_SOCKET_TLS
 

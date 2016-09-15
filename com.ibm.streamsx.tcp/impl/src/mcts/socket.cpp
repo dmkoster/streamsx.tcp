@@ -1,3 +1,10 @@
+/*
+#######################################################################
+# Copyright (C)2016, International Business Machines Corporation and
+# others. All Rights Reserved.
+#######################################################################
+*/
+
 #include "mcts/socket.h"
 
 using namespace mcts;
