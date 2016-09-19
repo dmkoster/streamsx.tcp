@@ -46,8 +46,8 @@ namespace mcts
         template<outFormat_t Format>
         void setData(SPL::blob & raw);
 
-        void handleError(streams_boost::system::error_code const & e, std::string const & ip, uint32_t port);
-        void handleError(streams_boost::system::error_code const & e, std::string const & ip, uint32_t port, TCPConnectionWeakPtr connWeakPtr);
+        void handleError(streams_boost::system::error_code const & e, std::size_t bytes_transferred, std::string const & ip, uint32_t port);
+        void handleError(streams_boost::system::error_code const & e, std::size_t bytes_transferred, std::string const & ip, uint32_t port, TCPConnectionWeakPtr connWeakPtr);
 
     private:
         /// Reference to bounded connection.

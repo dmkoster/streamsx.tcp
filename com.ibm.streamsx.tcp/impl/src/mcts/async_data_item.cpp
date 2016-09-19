@@ -75,12 +75,12 @@ namespace mcts
     template void AsyncDataItem::setData<block>(SPL::blob & raw);
     template void AsyncDataItem::setData<raw>(SPL::blob & raw);
 
-	void AsyncDataItem::handleError(streams_boost::system::error_code const & e, std::string const & ip, uint32_t port)
+	void AsyncDataItem::handleError(streams_boost::system::error_code const & e, std::size_t bytes_transferred, std::string const & ip, uint32_t port)
     {
 		handler_( e, ip,  port);
     }
 
-	void AsyncDataItem::handleError(streams_boost::system::error_code const & e, std::string const & ip, uint32_t port, TCPConnectionWeakPtr connWeakPtr)
+	void AsyncDataItem::handleError(streams_boost::system::error_code const & e, std::size_t bytes_transferred, std::string const & ip, uint32_t port, TCPConnectionWeakPtr connWeakPtr)
     {
 		if(TCPConnectionPtr connPtr = connWeakPtr.lock()) {
 			if (!e) __sync_fetch_and_sub(connPtr->getNumOutstandingWritesPtr(), 1);

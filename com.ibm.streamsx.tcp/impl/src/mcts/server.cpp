@@ -40,8 +40,10 @@ namespace mcts
                          DataHandler::Handler dHandler,
                          AsyncDataItem::Handler eHandler,
                          InfoHandler::Handler iHandler,
-                         MetricsHandler::Handler mHandler)
-        : threadPoolSize_(threadPoolSize),
+                         MetricsHandler::Handler mHandler,
+                         ConnectionSecurity secType)
+        : securityType_(secType),
+          threadPoolSize_(threadPoolSize),
           maxConnections_(maxConnections),
           maxUnreadResponseCount_(maxUnreadResponseCount),
           blockSize_(blockSize),
@@ -112,7 +114,7 @@ namespace mcts
 
         		// Set the KeepAlive values as given by the user.
         		if (keepAliveIdleTime_ || keepAliveMaxProbesCnt_ || keepAliveProbeInterval_) {
-        			int32_t _fd = static_cast<int32_t> (acceptor->nextConnection()->socket().native());
+        			int32_t _fd = static_cast<int32_t> (acceptor->nextConnection()->socket()->getNativeSocketHandle());
         			// std::cout << "Boost socket to native descriptor _fd = " << _fd << std::endl;
 
         			int32_t valopt = 1;
@@ -146,11 +148,9 @@ namespace mcts
         		}
         	}
 
-
-        	acceptor->nextConnection().reset(new TCPConnection(ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_));
-            acceptor->getAcceptor().async_accept(acceptor->nextConnection()->socket(),
-                                   streams_boost::bind(&TCPServer::handleAccept, this, acceptor,
-                                                       streams_boost::asio::placeholders::error));
+        	acceptor->nextConnection().reset(new TCPConnection(securityType_, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_));
+          acceptor->getAcceptor().async_accept(acceptor->nextConnection()->socket()->getUnderlyingSocket(),
+            streams_boost::bind(&TCPServer::handleAccept, this, acceptor, streams_boost::asio::placeholders::error));
         }
     }
 
@@ -160,7 +160,8 @@ namespace mcts
 		TCPConnectionWeakPtrMap::iterator iter = broadcastResponse_ ? findFirstConnection() : findConnection(createConnectionStr(ipAddress, port));
 
     	if(iter == connMap_.end()) {
-			if(!broadcastResponse_) errorHandler_.handleError(streams_boost::system::error_code(streams_boost::asio::error::connection_aborted), ipAddress, port);
+			 if(!broadcastResponse_) 
+        errorHandler_.handleError(streams_boost::system::error_code(streams_boost::asio::error::connection_aborted), 0, ipAddress, port);
     	}
 
 		else {
@@ -172,7 +173,7 @@ namespace mcts
 				TCPConnectionPtr connPtr = connWeakPtr.lock();
 
 				/// Validate existing connection
-				if (connPtr && connPtr->socket().is_open()) {
+				if (connPtr && connPtr->socket()->isOpen()) {
 
 					uint32_t * numOutstandingWritesPtr = connPtr->getNumOutstandingWritesPtr();
 
@@ -181,20 +182,19 @@ namespace mcts
 						__sync_fetch_and_add(numOutstandingWritesPtr, 1);
 
 						if(Format == mcts::block) {
-							async_write(connPtr->socket(), asyncDataItemPtr->getBuffers(),
-									connPtr->strand().wrap( streams_boost::bind(&AsyncDataItem::handleError, asyncDataItemPtr,
-															streams_boost::asio::placeholders::error,
-															connPtr->remoteIp(), connPtr->remotePort(), connWeakPtr)
-									)
-							);
+              connPtr->socket()->async_write(asyncDataItemPtr->getBuffers(), 
+                streams_boost::bind(&AsyncDataItem::handleError, asyncDataItemPtr,
+                              streams_boost::asio::placeholders::error, streams_boost::asio::placeholders::bytes_transferred,
+                              connPtr->remoteIp(), connPtr->remotePort(), connWeakPtr)
+                );
+
 						}
 						else {
-							async_write(connPtr->socket(), asyncDataItemPtr->getBuffer(),
-									connPtr->strand().wrap( streams_boost::bind(&AsyncDataItem::handleError, asyncDataItemPtr,
-															streams_boost::asio::placeholders::error,
-															connPtr->remoteIp(), connPtr->remotePort(), connWeakPtr)
-									)
-							);
+							connPtr->socket()->async_write(asyncDataItemPtr->getBuffer(), 
+                streams_boost::bind(&AsyncDataItem::handleError, asyncDataItemPtr,
+                              streams_boost::asio::placeholders::error, streams_boost::asio::placeholders::bytes_transferred,
+                              connPtr->remoteIp(), connPtr->remotePort(), connWeakPtr)
+                );
 						}
 
 						iter++;
@@ -208,7 +208,7 @@ namespace mcts
 							iter = unmapConnection(iter);
 						}
 
-						errorHandler_.handleError(streams_boost::system::error_code(streams_boost::asio::error::would_block), ipAddress, port, connWeakPtr);
+						errorHandler_.handleError(streams_boost::system::error_code(streams_boost::asio::error::would_block), 0, ipAddress, port, connWeakPtr);
 					}
 				}
 				else {
@@ -270,14 +270,14 @@ namespace mcts
     }
 
     void TCPServer::createAcceptor(std::string const & address, uint32_t port)
-	{
+	  {
     	TCPAcceptorPtr acceptor(new TCPAcceptor(ioServicePool_.get_io_service(), address, port));
 
-    	acceptor->nextConnection().reset(new TCPConnection(ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_));
-		acceptor->getAcceptor().async_accept(acceptor->nextConnection()->socket(),
+    	acceptor->nextConnection().reset(new TCPConnection(securityType_, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_));
+		  acceptor->getAcceptor().async_accept(acceptor->nextConnection()->socket()->getUnderlyingSocket(),
 								   streams_boost::bind(&TCPServer::handleAccept, this, acceptor,
 													   streams_boost::asio::placeholders::error));
-	}
+	  }
 
 
     inline const std::string TCPServer::createConnectionStr(std::string const & ipAddress, uint32_t port)

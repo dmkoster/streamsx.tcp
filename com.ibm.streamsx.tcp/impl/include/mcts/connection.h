@@ -11,6 +11,9 @@
 #include "mcts/data_item.h"
 #include "mcts/data_handler.h"
 #include "mcts/info_handler.h"
+#include "mcts/socket.h"
+#include "mcts/tls_socket.h"
+
 
 #include <streams_boost/asio.hpp>
 #include <streams_boost/array.hpp>
@@ -24,8 +27,9 @@
 
 namespace mcts 
 {
+    enum ConnectionSecurity { NONE, TLS };
 
-/// Represents a single connection from a client.
+    /// Represents a single connection from a client.
     class TCPConnection
         : public streams_boost::enable_shared_from_this<TCPConnection>
     {
@@ -34,7 +38,7 @@ namespace mcts
     	/// Construct a connection with the given io_service.
         /// @param ioService the IO service
         /// @param handler the handler
-        TCPConnection(streams_boost::asio::io_service& ioService, uint32_t blockSize, outFormat_t outFormat,
+        TCPConnection(ConnectionSecurity sec, streams_boost::asio::io_service& ioService, uint32_t blockSize, outFormat_t outFormat,
                       DataHandler & dHandler,  InfoHandler & iHandler);
 
         /// Destructor
@@ -54,11 +58,8 @@ namespace mcts
         /// Get the ip associated with the connection.
         uint32_t remotePort();
 
-        /// Get the socket associated with the connection.
-        streams_boost::asio::ip::tcp::socket & socket();
-
-        /// Get the strand associated with the connection.
-        streams_boost::asio::io_service::strand & strand();
+        /// Get the socket
+        SocketPtr socket() { return socket_; }
 
         /// Start the first asynchronous operation for the connection.
         void start();
@@ -71,11 +72,8 @@ namespace mcts
         void handleRead(const streams_boost::system::error_code& e,
                         std::size_t bytesTransferred);
         
-        /// Socket for the connection.
-        streams_boost::asio::ip::tcp::socket socket_;
-
-        /// Strand for the connection (allows to serialize access to sockets from multiple threads).
-        streams_boost::asio::io_service::strand strand_;
+        // The socket that handles network operations 
+        SocketPtr socket_;
 
         /// The handler used to process the incoming request.
         DataHandler & dataHandler_;
@@ -106,6 +104,14 @@ namespace mcts
         uint32_t numOutstandingWrites_;
 
         bool isShutdown_;
+
+        static SocketPtr createConnection(ConnectionSecurity sec, streams_boost::asio::io_service& ioService)
+        {
+            if(sec == TLS) 
+                return SocketPtr(new Socket(ioService));
+            else
+                return SocketPtr(new TLSSocket(ioService));
+        }   
     };
     
     typedef streams_boost::shared_ptr<TCPConnection> TCPConnectionPtr;

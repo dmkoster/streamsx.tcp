@@ -44,10 +44,12 @@ namespace mcts
         /// @param outFormat : line (condition to send data is "\n") or block (condition to send data is blockSize)
         /// @param handler that will process the data 
         /// @param handler that will send connection status infos
+        /// @param type of security to place on all connections (defaults to none)
         TCPServer(std::string const & address, uint32_t port, 
                   std::size_t threadPoolSize, std::size_t maxConnections, std::size_t maxUnreadResponseCount,
                   uint32_t blockSize, outFormat_t outFormat, bool broadcastResponse, bool isDuplexConnection, bool makeConnReadOnly,
-                  DataHandler::Handler dhandler, AsyncDataItem::Handler eHandler, InfoHandler::Handler iHandler, MetricsHandler::Handler mHandler);
+                  DataHandler::Handler dhandler, AsyncDataItem::Handler eHandler, InfoHandler::Handler iHandler, MetricsHandler::Handler mHandler,
+                  ConnectionSecurity secType = NONE);
 
         /// Set the keep alive socket options
         void setKeepAlive(int32_t time, int32_t probes, int32_t interval);
@@ -86,6 +88,9 @@ namespace mcts
         /// Handle completion of an asynchronous accept operation
         /// @param e the error code of the operation
         void handleAccept(TCPAcceptorPtr & acceptor, streams_boost::system::error_code const & e);
+
+        /// The security type employed on all connections
+        ConnectionSecurity securityType_;
         
         /// The number of threads that will call io_service::run()
         std::size_t threadPoolSize_;

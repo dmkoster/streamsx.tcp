@@ -6,11 +6,20 @@
 SPL_PKGCFG=$(STREAMS_INSTALL)/bin/dst-pe-pkg-config.sh
 SPL_PKG=dst-spl-pe-install
 SPL_INCLUDE_OPTIONS = `$(SPL_PKGCFG) --cflags $(SPL_PKG)`
-CXXFLAGS=-O3 -DNDEBUG -fPIC
+CXXFLAGS=-O3 -DNDEBUG -fPIC 
 
 .PHONY: clean distclean
 
 all: lib/libstreams.spl.multiconnection.tcp.server.so
+
+lib/socket.o: src/mcts/socket.cpp include/mcts/socket.h 
+	mkdir   -p    ./lib
+	@echo Compiling 'src/mcts/socket.cpp' ...
+	@g++ -Wall $(CXXFLAGS) -I include $(SPL_INCLUDE_OPTIONS) -c src/mcts/socket.cpp -o $@ 
+
+lib/tls_socket.o: src/mcts/tls_socket.cpp include/mcts/tls_socket.h 
+	@echo Compiling 'src/mcts/tls_socket.cpp' ...
+	@g++ -Wall $(CXXFLAGS) -I include $(SPL_INCLUDE_OPTIONS) -c src/mcts/tls_socket.cpp -o $@ 
 
 lib/server.o: src/mcts/server.cpp \
 	      include/mcts/server.h \
@@ -21,20 +30,21 @@ lib/server.o: src/mcts/server.cpp \
 	      include/mcts/info_handler.h \
 	      include/mcts/metrics_handler.h 
 	@echo Compiling 'src/mcts/server.cpp' ...
-	mkdir   -p    ./lib
 	@g++ -Wall $(CXXFLAGS) -I include $(SPL_INCLUDE_OPTIONS) -c src/mcts/server.cpp -o $@ 
 
 lib/acceptor.o: src/mcts/acceptor.cpp \
-          include/mcts/acceptor.h \
-	      include/mcts/connection.h
+        include/mcts/acceptor.h \
+      	include/mcts/connection.h
 	@echo Compiling 'src/mcts/acceptor.cpp' ...
 	@g++ -Wall $(CXXFLAGS) -I include $(SPL_INCLUDE_OPTIONS) -c src/mcts/acceptor.cpp -o $@ 
 
 lib/connection.o: src/mcts/connection.cpp \
-          include/mcts/connection.h \
-          include/mcts/data_item.h \
-          include/mcts/data_handler.h \
-		  include/mcts/info_handler.h
+        include/mcts/connection.h \
+        include/mcts/data_item.h \
+        include/mcts/data_handler.h \
+        include/mcts/socket.h \
+        include/mcts/tls_socket.h \
+	  		include/mcts/info_handler.h
 	@echo Compiling 'src/mcts/connection.cpp' ...
 	@g++ -Wall $(CXXFLAGS) -I include $(SPL_INCLUDE_OPTIONS) -c src/mcts/connection.cpp -o $@ 
 
@@ -63,6 +73,8 @@ lib/io_service_pool.o: src/mcts/io_service_pool.cpp
 	@g++ -Wall $(CXXFLAGS) -I include $(SPL_INCLUDE_OPTIONS) -c src/mcts/io_service_pool.cpp -o $@ 
 
 lib/libstreams.spl.multiconnection.tcp.server.so: \
+	lib/socket.o \
+	lib/tls_socket.o \
 	lib/server.o \
 	lib/acceptor.o \
 	lib/connection.o \
@@ -73,7 +85,7 @@ lib/libstreams.spl.multiconnection.tcp.server.so: \
 	lib/metrics_handler.o \
 	lib/io_service_pool.o 
 	@echo Building C++ shared library '$@'
-	@g++ -shared -o $@ $^		
+	@g++ -shared -o $@ $^
 
 clean:
 	rm -fr lib/*.o lib/*.so 
