@@ -143,6 +143,18 @@ The TCPServer operator throws an exception and terminates the operator in the fo
           <value>readOnly</value>
           <value>shutdown</value>
         </enumeration>
+        <enumeration>
+          <name>Role</name>
+          <value>client</value>
+          <value>server</value>
+        </enumeration>
+        <enumeration>
+          <name>TLS</name>
+          <value>disabled</value>
+          <!-- value>1.0</value-->
+          <!-- value>1.1</value-->
+          <value>1.2</value>
+        </enumeration>
       </customLiterals>
       <libraryDependencies>
         <library>
@@ -253,6 +265,69 @@ The TCPServer operator throws an exception and terminates the operator in the fo
         <rewriteAllowed>true</rewriteAllowed>
         <expressionMode>CustomLiteral</expressionMode>
         <type>ShutdownMode</type>
+        <cardinality>1</cardinality>
+      </parameter>
+      <parameter>
+        <name>role</name>
+        <description>This optional parameter specifies the role of this operator (client or server).  The default is client.</description>
+        <optional>true</optional>
+        <rewriteAllowed>true</rewriteAllowed>
+        <expressionMode>CustomLiteral</expressionMode>
+        <type>Role</type>
+        <cardinality>1</cardinality>
+      </parameter>
+      <parameter>
+        <name>retryFailedSends</name>
+        <description>This optional parameter specifies if this operator retries failed sends.  The default is true.</description>
+        <optional>true</optional>
+        <rewriteAllowed>true</rewriteAllowed>
+        <expressionMode>AttributeFree</expressionMode>
+        <type>boolean</type>
+        <cardinality>1</cardinality>
+      </parameter>
+      <parameter>
+        <name>flush</name>
+        <description>This optional parameter specifies the number of tuples after which this operator should flush its output TCP/IP stream.  The default is 1u.</description>
+        <optional>true</optional>
+        <rewriteAllowed>true</rewriteAllowed>
+        <expressionMode>AttributeFree</expressionMode>
+        <type>uint32</type>
+        <cardinality>1</cardinality>
+      </parameter>
+      <parameter>
+        <name>initDelay</name>
+        <description>This optional parameter specifies the number of milliseconds this operator should wait before attempting to initiate any outbound connections and send any outbound data.  The default is 0u.</description>
+        <optional>true</optional>
+        <rewriteAllowed>true</rewriteAllowed>
+        <expressionMode>AttributeFree</expressionMode>
+        <type>uint32</type>
+        <cardinality>1</cardinality>
+      </parameter>
+      <parameter>
+        <name>tlsEnabled</name>
+        <description>This optional parameter specifies whether TLS encryption on both inbound and outbound connections is enabled, and if so, which version of TLS.  The default is `disabled`.</description>
+        <optional>true</optional>
+        <rewriteAllowed>true</rewriteAllowed>
+        <expressionMode>CustomLiteral</expressionMode>
+        <type>TLS</type>
+        <cardinality>1</cardinality>
+      </parameter>
+      <parameter>
+        <name>privateKeyFilePath</name>
+        <description>This optional parameter specifies the path to the private key to be used for TLS, if enabled.  If TLS is enabled and the key file is not specified, an error occurs at compile time.</description>
+        <optional>true</optional>
+        <rewriteAllowed>true</rewriteAllowed>
+        <expressionMode>AttributeFree</expressionMode>
+        <type>rstring</type>
+        <cardinality>1</cardinality>
+      </parameter>
+      <parameter>
+        <name>certificateFilePath</name>
+        <description>This optional parameter specifies the path to the certificate file to be used for TLS, if enabled.  If TLS is enabled and the certificate file is not specified, an error occurs at compile time.</description>
+        <optional>true</optional>
+        <rewriteAllowed>true</rewriteAllowed>
+        <expressionMode>AttributeFree</expressionMode>
+        <type>rstring</type>
         <cardinality>1</cardinality>
       </parameter>
     </parameters>
