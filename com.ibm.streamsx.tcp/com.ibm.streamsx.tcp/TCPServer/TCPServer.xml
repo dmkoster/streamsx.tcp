@@ -14,7 +14,7 @@ An instance of the `TCPServer` operator will listen for connections on the port 
 A single instance of the operator can process multiple connections simultaneously (up to the value specified in the connectionCap parameter). 
 Each line or block of data received from an external source is converted by the `TCPServer` operator to a Streams tuple.
 
-To enable duplex support, add an input port to the operator.  The schema of the input port must be of type `TCPServerStrT` or `TCPServerBlobT` or equivalent.
+To enable duplex support, add an input port to the operator.  The schema of the input port must be of type `TCPServerStrEventT` or `TCPServerBlobEventT` or equivalent.
 The first attribute of the schema represents the data to send.  The `srcIP` and `srcPort` attributes represent the server and port to send the data to.
 When a tuple is received on the input port, the data will be sent asynchronously via an existing socket connection.  If an error occurs, the error will be logged.
 

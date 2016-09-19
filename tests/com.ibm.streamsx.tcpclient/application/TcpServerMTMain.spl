@@ -23,7 +23,7 @@ composite TcpServerMTMain
 
 		}
 
-		(stream<TcpServerStrT> Functor_3_out0) as Functor_Odd = Functor(Split_4_out0
+		(stream<TcpServerStrEventT> Functor_3_out0) as Functor_Odd = Functor(Split_4_out0
 			as inPort0Alias)
 		{
 			logic
@@ -38,7 +38,7 @@ composite TcpServerMTMain
 				}
 
 			output
-				Functor_3_out0 : line = "Odd|" + line + "\n" ;
+				Functor_3_out0 : line = "Odd|" + line + "\n", event = RESPONSE ;
 		}
 
 		(stream<TcpServerStrT> Split_4_out0 ; stream<TcpServerStrT> Split_4_out1) as
@@ -59,7 +59,7 @@ composite TcpServerMTMain
 				index : cnt ;
 		}
 
-		(stream<TcpServerStrT> Functor_Even_out0) as Functor_Even =
+		(stream<TcpServerStrEventT> Functor_Even_out0) as Functor_Even =
 			Functor(Split_4_out1 as inPort0Alias)
 		{
 			logic
@@ -74,7 +74,7 @@ composite TcpServerMTMain
 				}
 
 			output
-				Functor_Even_out0 : line = "Even|" + line + "\n" ;
+				Functor_Even_out0 : line = "Even|" + line + "\n", event = RESPONSE;
 		}
 
 }

@@ -20,7 +20,7 @@ public rstring getResponse(rstring request)
 composite SingleClientMain
 {
 	param
-		expression<rstring> $host : "d0101b09" ;
+		expression<rstring> $host : getHostName() ;
 		expression<int32> $port : 22222 ;
 		expression<uint32> $numIter : 10000000u ;
 	graph
