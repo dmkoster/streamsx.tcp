@@ -41,8 +41,14 @@ namespace mcts
                          AsyncDataItem::Handler eHandler,
                          InfoHandler::Handler iHandler,
                          MetricsHandler::Handler mHandler,
-                         ConnectionSecurity secType)
-        : securityType_(secType),
+                         Role roleType,
+                         ConnectionSecurity secType,
+                         const std::string & certificateFile, 
+                         const std::string & privateKeyFile)
+        : roleType_(roleType),
+          securityType_(secType),
+          certificateFile_(certificateFile),
+          privateKeyFile_(privateKeyFile),
           threadPoolSize_(threadPoolSize),
           maxConnections_(maxConnections),
           maxUnreadResponseCount_(maxUnreadResponseCount),
@@ -60,8 +66,18 @@ namespace mcts
           isDuplexConnection_(isDuplexConnection),
           makeConnReadOnly_(makeConnReadOnly)
     {
-    	// if port is provided (not zero) then create a listener for it
-    	if (port) createAcceptor(address, port);
+
+      if(roleType_ == SERVER)
+      {
+        // if port is provided (not zero) then create a listener for it
+        if (port) 
+          createAcceptor(address, port);
+      } 
+      else // roleType_ == CLIENT
+      {
+        connect(address, port);
+      }
+    	
     }
     
     void TCPServer::setKeepAlive(int32_t time, int32_t probes, int32_t interval)
@@ -98,6 +114,16 @@ namespace mcts
         ioServicePool_.stop();
     }
 
+    void TCPServer::handleConnect(TCPConnectionPtr conn, streams_boost::system::error_code const & e)
+    {
+      if(!e)
+      {
+
+        mapConnection(conn);
+        metricsHandler_.handleMetrics(0, (int64_t)mcts::TCPConnection::getNumberOfConnections());
+      }
+    }
+
     void TCPServer::handleAccept(TCPAcceptorPtr & acceptor, streams_boost::system::error_code const & e)
     {
         if (!e) {
@@ -106,7 +132,7 @@ namespace mcts
 
         		// Add a new connection to the response connection map, but only if duplex communication is required
         		if (isDuplexConnection_) {
-					mapConnection(acceptor->nextConnection());
+					   mapConnection(acceptor->nextConnection());
         		}
         		// Update number of open connections metric
         		metricsHandler_.handleMetrics(0, (int64_t)mcts::TCPConnection::getNumberOfConnections());
@@ -148,9 +174,13 @@ namespace mcts
         		}
         	}
 
-        	acceptor->nextConnection().reset(new TCPConnection(securityType_, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_));
+          // The function for the socket to call back on once it's finished any operations around it's accept
+          Socket::accept_complete_func func = streams_boost::bind(&TCPServer::handleAccept, this, acceptor, streams_boost::asio::placeholders::error);
+
+        	acceptor->nextConnection().reset(new TCPConnection(securityType_, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_, certificateFile_, privateKeyFile_));
           acceptor->getAcceptor().async_accept(acceptor->nextConnection()->socket()->getUnderlyingSocket(),
-            streams_boost::bind(&TCPServer::handleAccept, this, acceptor, streams_boost::asio::placeholders::error));
+            streams_boost::bind(&Socket::handleAccept, acceptor->nextConnection()->socket(), func, streams_boost::asio::placeholders::error)
+            );
         }
     }
 
@@ -273,15 +303,25 @@ namespace mcts
 	  {
     	TCPAcceptorPtr acceptor(new TCPAcceptor(ioServicePool_.get_io_service(), address, port));
 
-    	acceptor->nextConnection().reset(new TCPConnection(securityType_, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_));
+    	acceptor->nextConnection().reset(new TCPConnection(securityType_, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_, certificateFile_, privateKeyFile_));
+
+      Socket::accept_complete_func func = streams_boost::bind(&TCPServer::handleAccept, this, acceptor, streams_boost::asio::placeholders::error);
 		  acceptor->getAcceptor().async_accept(acceptor->nextConnection()->socket()->getUnderlyingSocket(),
-								   streams_boost::bind(&TCPServer::handleAccept, this, acceptor,
-													   streams_boost::asio::placeholders::error));
+						      streams_boost::bind(&Socket::handleAccept, acceptor->nextConnection()->socket(), func, streams_boost::asio::placeholders::error)
+                 );
 	  }
 
 
     inline const std::string TCPServer::createConnectionStr(std::string const & ipAddress, uint32_t port)
     {
 		return ipAddress + ":" + streams_boost::lexical_cast<std::string>(port);
+    }
+
+    void TCPServer::connect(std::string const & address, uint32_t port)
+    {
+      streams_boost::asio::ip::tcp::endpoint endpoint(streams_boost::asio::ip::address::from_string(address), port);
+      TCPConnectionPtr conn = TCPConnectionPtr(new TCPConnection(securityType_, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_, certificateFile_, privateKeyFile_));
+      Socket::connect_complete_func func = streams_boost::bind(&TCPServer::handleConnect, this, conn, streams_boost::asio::placeholders::error);
+      conn->socket()->getUnderlyingSocket().async_connect(endpoint, streams_boost::bind(&Socket::handleConnect, conn->socket(), func, streams_boost::asio::placeholders::error));
     }
 }

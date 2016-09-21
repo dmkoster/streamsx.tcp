@@ -17,6 +17,8 @@ namespace mcts
   {
     public:
       typedef streams_boost::function<void(const streams_boost::system::error_code&, std::size_t)> async_complete_func;
+      typedef streams_boost::function<void(const streams_boost::system::error_code)> accept_complete_func;
+      typedef streams_boost::function<void(const streams_boost::system::error_code)> connect_complete_func;
 
       Socket(streams_boost::asio::io_service & ioService);
 
@@ -34,8 +36,8 @@ namespace mcts
       /// Status of socket
       bool isOpen() const { return socket_.is_open(); }
 
-      virtual void connect();
-      virtual void accept();
+      virtual void handleConnect(connect_complete_func handler, const streams_boost::system::error_code & ec);
+      virtual void handleAccept(accept_complete_func handler, const streams_boost::system::error_code & ec);
 
       /// Shuts down the socket, either send, receive, or both
       virtual void shutdown(streams_boost::asio::ip::tcp::socket::shutdown_type what, streams_boost::system::error_code & ec);

@@ -18,10 +18,11 @@ namespace mcts
   class TLSSocket : public Socket
   {
   public:
-    TLSSocket(streams_boost::asio::io_service & ioService);
+    TLSSocket(streams_boost::asio::io_service & ioService, const std::string & certifcate);
+    TLSSocket(streams_boost::asio::io_service & ioService, const std::string & certifcate, const std::string & key);
 
-    virtual void connect();
-    virtual void accept();
+    virtual void handleConnect(connect_complete_func handler, const streams_boost::system::error_code & ec);
+    virtual void handleAccept(accept_complete_func handler, const streams_boost::system::error_code & ec);
     virtual void shutdown(streams_boost::asio::ip::tcp::socket::shutdown_type what, streams_boost::system::error_code & ec);
 
     virtual void async_write(streams_boost::asio::const_buffers_1 buffer, async_complete_func handler);

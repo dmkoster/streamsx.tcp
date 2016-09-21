@@ -39,7 +39,9 @@ namespace mcts
         /// @param ioService the IO service
         /// @param handler the handler
         TCPConnection(ConnectionSecurity sec, streams_boost::asio::io_service& ioService, uint32_t blockSize, outFormat_t outFormat,
-                      DataHandler & dHandler,  InfoHandler & iHandler);
+                      DataHandler & dHandler,  InfoHandler & iHandler,
+                      const std::string & certificate,
+                      const std::string & key);
 
         /// Destructor
         ~TCPConnection();
@@ -105,12 +107,14 @@ namespace mcts
 
         bool isShutdown_;
 
-        static SocketPtr createConnection(ConnectionSecurity sec, streams_boost::asio::io_service& ioService)
+        static SocketPtr createConnection(ConnectionSecurity sec, streams_boost::asio::io_service& ioService, const std::string & certificate, const std::string & key)
         {
             if(sec == TLS) 
                 return SocketPtr(new Socket(ioService));
+            else if(key == "")
+                return SocketPtr(new TLSSocket(ioService, certificate));
             else
-                return SocketPtr(new TLSSocket(ioService));
+                return SocketPtr(new TLSSocket(ioService, certificate, key));
         }   
     };
     
