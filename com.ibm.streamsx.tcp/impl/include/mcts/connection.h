@@ -98,9 +98,6 @@ namespace mcts
         // Blocksize
         uint32_t blockSize_;
 
-        // Prepended message size header
-        bool messageHeader_;
-
         // output format
         outFormat_t outFormat_;
 
