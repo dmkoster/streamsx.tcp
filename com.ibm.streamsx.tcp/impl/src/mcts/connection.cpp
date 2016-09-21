@@ -21,8 +21,8 @@ namespace mcts
     uint32_t TCPConnection::numConnections_ = 0;
 
     TCPConnection::TCPConnection(ConnectionSecurity sec, streams_boost::asio::io_service & ioService, uint32_t blockSize, outFormat_t outFormat,
-    						DataHandler & dHandler, InfoHandler & iHandler)
-        : socket_(createConnection(sec, ioService)),
+    						DataHandler & dHandler, InfoHandler & iHandler, const std::string & certificate, const std::string & key)
+        : socket_(createConnection(sec, ioService, certificate, key)),
           dataHandler_(dHandler),
           infoHandler_(iHandler),
           remoteIp_(""), // initialize with empty string

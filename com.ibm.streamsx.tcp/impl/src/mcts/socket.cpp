@@ -36,14 +36,14 @@ void Socket::async_read_some(streams_boost::asio::mutable_buffers_1 buffer, asyn
   socket_.async_read_some(buffer, handler);
 }
 
-void Socket::connect()
+void Socket::handleConnect(connect_complete_func handler, const streams_boost::system::error_code & ec)
 {
-
+  handler(ec);
 }
 
-void Socket::accept()
+void Socket::handleAccept(accept_complete_func handler, const streams_boost::system::error_code & ec)
 {
-
+  handler(ec);
 }
 
 void Socket::shutdown(streams_boost::asio::ip::tcp::socket::shutdown_type what, streams_boost::system::error_code & ec)

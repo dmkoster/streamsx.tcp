@@ -9,15 +9,27 @@
 
 using namespace mcts;
 
-TLSSocket::TLSSocket(streams_boost::asio::io_service & ioService) :
+TLSSocket::TLSSocket(streams_boost::asio::io_service & ioService, const std::string & certifcate) :
   Socket(ioService)
 {
   streams_boost::asio::ssl::context ctx(streams_boost::asio::ssl::context::tlsv12);
   ctx.set_options(streams_boost::asio::ssl::context::default_workarounds);
   ctx.set_verify_mode(streams_boost::asio::ssl::verify_peer);
+  ctx.load_verify_file(certifcate);
 
-  // TODO: Load Verification File / Certificate Chain / Private Key
-  //ctx.load_verify_file(AsioConnectionUtils::getTransportCertificatePath());
+  ssl_.reset(
+    new streams_boost::asio::ssl::stream<streams_boost::asio::ip::tcp::socket&>(
+      getUnderlyingSocket(), ctx));
+}
+
+TLSSocket::TLSSocket(streams_boost::asio::io_service & ioService, const std::string & certifcate, const std::string & key) :
+  Socket(ioService)
+{
+  streams_boost::asio::ssl::context ctx(streams_boost::asio::ssl::context::tlsv12);
+  ctx.set_options(streams_boost::asio::ssl::context::default_workarounds);
+  ctx.set_verify_mode(streams_boost::asio::ssl::verify_peer);
+  ctx.use_certificate_file(certifcate, streams_boost::asio::ssl::context::pem);
+  ctx.use_private_key_file(key, streams_boost::asio::ssl::context::pem);
 
   ssl_.reset(
     new streams_boost::asio::ssl::stream<streams_boost::asio::ip::tcp::socket&>(
@@ -44,14 +56,29 @@ void TLSSocket::async_read_some(streams_boost::asio::mutable_buffers_1 buffer, a
   ssl_->async_read_some(buffer, handler);
 }
 
-void TLSSocket::connect()
+void TLSSocket::handleConnect(connect_complete_func handler, const streams_boost::system::error_code & ec)
 {
-
+  if(!ec)
+  {
+    streams_boost::system::error_code handshakeEc;
+    ssl_->handshake(streams_boost::asio::ssl::stream_base::client, handshakeEc);
+    if(handshakeEc)
+        handler(handshakeEc);
+  }
+  handler(ec);
 }
 
-void TLSSocket::accept()
+void TLSSocket::handleAccept(accept_complete_func handler, const streams_boost::system::error_code & ec)
 {
-
+  if(!ec)
+  {
+    streams_boost::system::error_code handshakeEc;
+    ssl_->handshake(streams_boost::asio::ssl::stream_base::server, handshakeEc);
+    if(handshakeEc)
+      handler(handshakeEc);
+  }
+  Socket::handleAccept(handler, ec);
+  
 }
 
 void TLSSocket::shutdown(streams_boost::asio::ip::tcp::socket::shutdown_type what, streams_boost::system::error_code & ec)

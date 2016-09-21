@@ -10,8 +10,8 @@ CXXFLAGS=-O3 -DNDEBUG -fPIC
 
 .PHONY: clean distclean
 
-all: lib/libstreams.spl.multiconnection.tcp.server.so
-
+all: lib/libstreams.spl.multiconnection.tcp.server.so 
+	
 lib/socket.o: src/mcts/socket.cpp include/mcts/socket.h 
 	mkdir   -p    ./lib
 	@echo Compiling 'src/mcts/socket.cpp' ...
