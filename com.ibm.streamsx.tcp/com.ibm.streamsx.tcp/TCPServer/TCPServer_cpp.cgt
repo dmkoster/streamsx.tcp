@@ -40,10 +40,23 @@ using namespace SPL;
   my $makeConnReadOnly = 'true';
   $makeConnReadOnly = 'false' if ($disableDuplexConnection && $disableDuplexConnection->getValueAt(0)->getSPLExpression() eq 'shutdown');
 
+  my $isServerRole = ($_ = $model->getParameterByName('role')) ? ($_->getValueAt(0)->getSPLExpression() eq 'server') : 'false';
+  
+  my $retryFailedSendsExpr = ($_ = $model->getParameterByName('retryFailedSends')) ? ($_->getValueAt(0)->getCppExpression()) : 'false';
 
-	my $oport0 = $model->getOutputPortAt(0);
-  	my $oport1 = $model->getOutputPortAt(1);
-  	my $iport0 = $model->getInputPortAt(0);
+  my $flush = ($_ = $model->getParameterByName('flush')) ? ($_->getValueAt(0)->getCppExpression()) : '1';
+
+  my $initDelay = ($_ = $model->getParameterByName('initDelay')) ? ($_->getValueAt(0)->getCppExpression()) : '0';
+
+  my $tlsEnabled = ($_ = $model->getParameterByName('tlsEnabled')) ? ($_->getValueAt(0)->getCppExpression()) : 'disabled';
+  
+  my $privateKeyFilePath = ($_ = $model->getParameterByName('privateKeyFilePath')) ? ($_->getValueAt(0)->getCppExpression()) : '""';
+
+  my $certificateFilePath = ($_ = $model->getParameterByName('certificateFilePath')) ? ($_->getValueAt(0)->getCppExpression()) : '""';
+ 
+  my $oport0 = $model->getOutputPortAt(0);
+  my $oport1 = $model->getOutputPortAt(1);
+  my $iport0 = $model->getInputPortAt(0);
 %>
 
 	<%if ($oport0->getAttributeByName("line")){%>
@@ -65,16 +78,21 @@ inline std::string cutNewLine(std::string const& str) {
 
 // Constructor
 MY_OPERATOR::MY_OPERATOR()
-    : address_(cutNewLine(<%=$address%>)),
-      server_(
+    : address_(cutNewLine(<%=$address%>)),	  
+	  server_(
     		  address_, 
               <%=$port%>, <%=$threadPoolSize%>, <%=$connectionCap%>, <%=$maxUnreadResponseCount%>,
-              <%=$blockSize%>,  MY_OPERATOR::outFormat_, <%=$broadcastResponse%>, <%=defined($iport0) ? 'true' : 'false'%>, <%=$makeConnReadOnly%>,
+              <%=$blockSize%>,  MY_OPERATOR::outFormat_, <%=$broadcastResponse%>, <%=defined($iport0) ? 'true' : 'false'%>,
+              <%=$makeConnReadOnly%>,
               streams_boost::bind(&MY_OPERATOR::handleData, this, _1, _2, _3) ,
               streams_boost::bind(&MY_OPERATOR::handleError, this, _1, _2, _3) ,
               streams_boost::bind(&MY_OPERATOR::handleInfo, this, _1, _2, _3) ,
-              streams_boost::bind(&MY_OPERATOR::handleMetrics, this, _1, _2)
-              ),
+              streams_boost::bind(&MY_OPERATOR::handleMetrics, this, _1, _2),
+			  <%=$isServerRole%> ? mcts::SERVER : mcts::CLIENT,
+			  <%=$tlsEnabled eq 'disabled'%> ? mcts::NONE : mcts::TLS,
+			  <%=$certificateFilePath%>,
+			  <%=$privateKeyFilePath%>
+	  ),
 	  opm_(getContext().getMetrics())
 {
     // Initialization code goes here
