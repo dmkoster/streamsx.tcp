@@ -73,10 +73,6 @@ namespace mcts
         if (port) 
           createAcceptor(address, port);
       } 
-      else // roleType_ == CLIENT
-      {
-        connect(address, port);
-      }
     	
     }
     
