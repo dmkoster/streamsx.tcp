@@ -151,9 +151,9 @@ The TCPServer operator throws an exception and terminates the operator in the fo
         <enumeration>
           <name>TLS</name>
           <value>disabled</value>
-          <!-- value>1.0</value-->
-          <!-- value>1.1</value-->
-          <value>1.2</value>
+          <!-- value>v1_0</value-->
+          <!-- value>v1_1</value-->
+          <value>v1_2</value>
         </enumeration>
       </customLiterals>
       <libraryDependencies>
