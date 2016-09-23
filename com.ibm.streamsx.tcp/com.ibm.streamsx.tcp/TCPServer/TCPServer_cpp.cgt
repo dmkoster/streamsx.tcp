@@ -13,6 +13,7 @@
 #include <streams_boost/algorithm/string.hpp>
 #include <stdlib.h>
 #include "mcts/data_item.h"
+#include <unistd.h>
 
 
 <%
@@ -40,15 +41,19 @@ using namespace SPL;
   my $makeConnReadOnly = 'true';
   $makeConnReadOnly = 'false' if ($disableDuplexConnection && $disableDuplexConnection->getValueAt(0)->getSPLExpression() eq 'shutdown');
 
-  my $isServerRole = ($_ = $model->getParameterByName('role')) ? ($_->getValueAt(0)->getSPLExpression() eq 'server') : 'false';
-  
+  my $isServerRole = 'false';
+  my $roleParam = $model->getParameterByName('role');
+  if($roleParam) {
+	  $isServerRole = 'true' if ($roleParam->getValueAt(0)->getSPLExpression() eq 'server');
+  }
+	  
   my $retryFailedSendsExpr = ($_ = $model->getParameterByName('retryFailedSends')) ? ($_->getValueAt(0)->getCppExpression()) : 'false';
 
-  my $flush = ($_ = $model->getParameterByName('flush')) ? ($_->getValueAt(0)->getCppExpression()) : '1';
+  #my $flush = ($_ = $model->getParameterByName('flush')) ? ($_->getValueAt(0)->getCppExpression()) : '1';
 
   my $initDelay = ($_ = $model->getParameterByName('initDelay')) ? ($_->getValueAt(0)->getCppExpression()) : '0';
 
-  my $tlsEnabled = ($_ = $model->getParameterByName('tlsEnabled')) ? ($_->getValueAt(0)->getCppExpression()) : 'disabled';
+  my $tlsEnabled = ($_ = $model->getParameterByName('tlsEnabled')) ? ($_->getValueAt(0)->getSPLExpression() eq 'v1_2') : 'false';
   
   my $privateKeyFilePath = ($_ = $model->getParameterByName('privateKeyFilePath')) ? ($_->getValueAt(0)->getCppExpression()) : '""';
 
@@ -88,8 +93,8 @@ MY_OPERATOR::MY_OPERATOR()
               streams_boost::bind(&MY_OPERATOR::handleError, this, _1, _2, _3) ,
               streams_boost::bind(&MY_OPERATOR::handleInfo, this, _1, _2, _3) ,
               streams_boost::bind(&MY_OPERATOR::handleMetrics, this, _1, _2),
-			  <%=$isServerRole%> ? mcts::SERVER : mcts::CLIENT,
-			  <%=$tlsEnabled eq 'disabled'%> ? mcts::NONE : mcts::TLS,
+			  (<%=$isServerRole%>) ? mcts::SERVER : mcts::CLIENT,
+			  (<%=$tlsEnabled%>) ? mcts::NONE : mcts::TLS,
 			  <%=$certificateFilePath%>,
 			  <%=$privateKeyFilePath%>
 	  ),
@@ -124,8 +129,16 @@ void MY_OPERATOR::allPortsReady()
 // Processing for source and threaded operators   
 void MY_OPERATOR::process(uint32_t idx)
 {
-    if(!getPE().getShutdownRequested()) 
-        server_.run();
+    if(!getPE().getShutdownRequested()) { 
+        // if we are in client mode, wait for initDelay milliseconds, then connect
+    	if(!<%=$isServerRole%>) { // client
+    		if(<%=$initDelay%> > 0) {
+    			usleep(<%=$initDelay%> /* milliseconds*/ * 1000 /* microseconds per millisecond*/);
+    			server_.connect(address_, <%=$port%>);
+    		}
+    	}
+    	server_.run();
+    }
 }
 
 // Notify pending shutdown

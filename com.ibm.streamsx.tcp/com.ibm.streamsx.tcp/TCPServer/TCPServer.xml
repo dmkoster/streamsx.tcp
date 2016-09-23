@@ -285,7 +285,7 @@ The TCPServer operator throws an exception and terminates the operator in the fo
         <type>boolean</type>
         <cardinality>1</cardinality>
       </parameter>
-      <parameter>
+      <!-- parameter>
         <name>flush</name>
         <description>This optional parameter specifies the number of tuples after which this operator should flush its output TCP/IP stream.  The default is 1u.</description>
         <optional>true</optional>
@@ -293,7 +293,7 @@ The TCPServer operator throws an exception and terminates the operator in the fo
         <expressionMode>AttributeFree</expressionMode>
         <type>uint32</type>
         <cardinality>1</cardinality>
-      </parameter>
+      </parameter-->
       <parameter>
         <name>initDelay</name>
         <description>This optional parameter specifies the number of milliseconds this operator should wait before attempting to initiate any outbound connections and send any outbound data.  The default is 0u.</description>
@@ -334,7 +334,7 @@ The TCPServer operator throws an exception and terminates the operator in the fo
     <inputPorts>
       <inputPortSet>
         <description>
-The `TCPServer` operator has one optional input port.  The schema of the input port must be of type `TcpServerStrT` or `TCPServerBlobT` or equivalent.  Based on event attribute value the operator either sends the data received to the `srcIP`:`srcPort` or opens a new dynamic listener, as specified on the incoming tuple.</description>
+The `TCPServer` operator has one optional input port.  The schema of the input port must be of type `TcpServerStrEventT` or `TCPServerBlobEventT` or equivalent.  Based on event attribute value the operator either sends the data received to the `srcIP`:`srcPort` or opens a new dynamic listener, as specified on the incoming tuple.</description>
         <windowingDescription></windowingDescription>
         <tupleMutationAllowed>false</tupleMutationAllowed>
         <windowingMode>NonWindowed</windowingMode>
