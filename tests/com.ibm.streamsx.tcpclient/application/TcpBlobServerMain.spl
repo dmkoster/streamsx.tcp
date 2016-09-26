@@ -22,7 +22,7 @@ composite TcpBlobServerMain
 
 		}
 
-		(stream<TcpServerBlobT> Functor_3_out0) as Functor_3 = Functor(TcpServerOp)
+		(stream<TcpServerBlobEventT> Functor_3_out0) as Functor_3 = Functor(TcpServerOp)
 		{
 			logic
 				state :
@@ -36,7 +36,7 @@ composite TcpBlobServerMain
 				}
 
 			output
-				Functor_3_out0 : block = convertToBlob(line + ":blob") ;
+				Functor_3_out0 : block = convertToBlob(line + ":blob"), event = RESPONSE ;
 		}
 
 }
