@@ -15,6 +15,7 @@
 #include "mcts/data_item.h"
 #include <unistd.h>
 
+#define OPERATOR_NAME "TCPServer"
 
 <%
   use TCPServerCommon;
@@ -100,6 +101,9 @@ MY_OPERATOR::MY_OPERATOR()
 	  ),
 	  opm_(getContext().getMetrics())
 {
+	
+	SPLAPPTRC(L_TRACE, "In constructor.", OPERATOR_NAME);
+	
     // Initialization code goes here
     // If the user provided a KeepAlive parameter, we can set that now.
     <%if ($keepAlive ne "") {%>
@@ -123,12 +127,14 @@ MY_OPERATOR::~MY_OPERATOR()
 // Notify port readiness
 void MY_OPERATOR::allPortsReady() 
 {
+	SPLAPPTRC(L_TRACE, "In allPortsReady().  About to create threads.", OPERATOR_NAME);
     createThreads(1); // Create source thread
 }
  
 // Processing for source and threaded operators   
 void MY_OPERATOR::process(uint32_t idx)
 {
+	SPLAPPTRC(L_TRACE, "In process(uint32_t idx)", OPERATOR_NAME);
     if(!getPE().getShutdownRequested()) { 
         // if we are in client mode, wait for initDelay milliseconds, then connect
     	if(!<%=$isServerRole%>) { // client
@@ -218,14 +224,14 @@ void MY_OPERATOR::handleWrite(std::string const & line, std::string const & ipAd
 
 void MY_OPERATOR::handleError(const streams_boost::system::error_code& e, std::string const & ipAddress, uint32_t port)
 {
-//	SPLAPPTRC(L_ERROR, "Data is sent to " << ipAddress << ":" << port, "TCPServer");
+//	SPLAPPTRC(L_ERROR, "Data is sent to " << ipAddress << ":" << port, OPERATOR_NAME);
 	if (e) {
 		if (e == streams_boost::asio::error::would_block) {
-			SPLAPPTRC(L_ERROR, "responseDisabled: Unresponsive client on " << ipAddress << ":" << port << "\n" << e.message(), "TCPServer");
+			SPLAPPTRC(L_ERROR, "responseDisabled: Unresponsive client on " << ipAddress << ":" << port << "\n" << e.message(), OPERATOR_NAME);
 			handleInfo("responseDisabled", ipAddress, port);
 		}
 		else {
-			SPLAPPTRC(L_ERROR, "responseError: Unable to send data to " << ipAddress << ":" << port << "\n" << e.message(), "TCPServer");
+			SPLAPPTRC(L_ERROR, "responseError: Unable to send data to " << ipAddress << ":" << port << "\n" << e.message(), OPERATOR_NAME);
 			handleInfo("responseError", ipAddress, port);
 		}
 	}
@@ -315,7 +321,7 @@ void MY_OPERATOR::process(Tuple const & tuple, uint32_t port)
 			}
 		}
 		
-		SPLAPPLOG(L_WARN, "The listener for '" << connStr << "' already exists", "TCPServer");
+		SPLAPPLOG(L_WARN, "The listener for '" << connStr << "' already exists", OPERATOR_NAME);
 	}
 	else
 	{
