@@ -13,6 +13,7 @@
 #include <vector>
 #include <streams_boost/bind.hpp>
 
+#include <SPL/Runtime/Common/RuntimeDebug.h>
 
 #include <iostream>
 
@@ -20,9 +21,10 @@ namespace mcts
 {
     uint32_t TCPConnection::numConnections_ = 0;
 
-    TCPConnection::TCPConnection(ConnectionSecurity sec, streams_boost::asio::io_service & ioService, uint32_t blockSize, outFormat_t outFormat,
+    TCPConnection::TCPConnection(ConnectionSecurity sec, Role role, streams_boost::asio::io_service & ioService, uint32_t blockSize, outFormat_t outFormat,
     						DataHandler & dHandler, InfoHandler & iHandler, const std::string & certificate, const std::string & key)
-        : socket_(createConnection(sec, ioService, certificate, key)),
+        : socket_(createConnection(sec, role, ioService, certificate, key)),
+          role_(role),
           dataHandler_(dHandler),
           infoHandler_(iHandler),
           remoteIp_(""), // initialize with empty string
@@ -31,6 +33,7 @@ namespace mcts
           numOutstandingWrites_(0),
           isShutdown_(false)
     {
+        SPLAPPTRC(L_ERROR,"Security " << sec << " Role " << role, "Connection");
         __sync_fetch_and_add(&numConnections_, 1);
     }
 
@@ -74,8 +77,8 @@ namespace mcts
         remotePort_ = socket_->getEndpoint().port();
         infoHandler_.handleInfo("connected", remoteIp_, remotePort_);
 
-
-        socket_->async_read_some(streams_boost::asio::buffer(buffer_),
+        if(role_ == SERVER)
+            socket_->async_read_some(streams_boost::asio::buffer(buffer_),
                                 streams_boost::bind(&TCPConnection::handleRead, shared_from_this(),
                                                     streams_boost::asio::placeholders::error,
                                                     streams_boost::asio::placeholders::bytes_transferred));

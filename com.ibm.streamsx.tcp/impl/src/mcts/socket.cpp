@@ -7,13 +7,15 @@
 
 #include "mcts/socket.h"
 
+#include <SPL/Runtime/Common/RuntimeDebug.h>
+
 using namespace mcts;
 
 Socket::Socket(streams_boost::asio::io_service & ioService) : 
   strand_(ioService), 
   socket_(ioService)
 {
-
+  SPLAPPTRC(L_ERROR,"Constructor", "Socket");
 }
 
 void Socket::async_write(streams_boost::asio::const_buffers_1 buffer, async_complete_func handler)
