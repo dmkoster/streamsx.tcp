@@ -33,7 +33,7 @@ namespace mcts
           numOutstandingWrites_(0),
           isShutdown_(false)
     {
-        SPLAPPTRC(L_ERROR,"Security " << sec << " Role " << role, "Connection");
+        SPLAPPTRC(L_DEBUG,"Security " << sec << " Role " << role, "Connection");
         __sync_fetch_and_add(&numConnections_, 1);
     }
 

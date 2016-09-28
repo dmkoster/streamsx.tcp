@@ -95,7 +95,7 @@ namespace mcts
         InfoHandler & infoHandler_;
 
         /// Buffer for incoming data.
-        streams_boost::array<char, 8192> buffer_;
+        streams_boost::array<char, 65536> buffer_;
 
         /// The incoming data item
         DataItem dataItem_;
