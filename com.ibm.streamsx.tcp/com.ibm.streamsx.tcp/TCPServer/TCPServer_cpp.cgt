@@ -95,7 +95,7 @@ MY_OPERATOR::MY_OPERATOR()
               streams_boost::bind(&MY_OPERATOR::handleInfo, this, _1, _2, _3) ,
               streams_boost::bind(&MY_OPERATOR::handleMetrics, this, _1, _2),
 			  (<%=$isServerRole%>) ? mcts::SERVER : mcts::CLIENT,
-			  (<%=$tlsEnabled%>) ? mcts::NONE : mcts::TLS,
+			  (<%=$tlsEnabled%>) ? mcts::TLS : mcts::NONE,
 			  <%=$certificateFilePath%>,
 			  <%=$privateKeyFilePath%>
 	  ),
