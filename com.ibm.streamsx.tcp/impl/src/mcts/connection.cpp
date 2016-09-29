@@ -77,11 +77,10 @@ namespace mcts
         remotePort_ = socket_->getEndpoint().port();
         infoHandler_.handleInfo("connected", remoteIp_, remotePort_);
 
-        if(role_ == SERVER)
-            socket_->async_read_some(streams_boost::asio::buffer(buffer_),
-                                streams_boost::bind(&TCPConnection::handleRead, shared_from_this(),
-                                                    streams_boost::asio::placeholders::error,
-                                                    streams_boost::asio::placeholders::bytes_transferred));
+        socket_->async_read_some(streams_boost::asio::buffer(buffer_),
+                            streams_boost::bind(&TCPConnection::handleRead, shared_from_this(),
+                                                streams_boost::asio::placeholders::error,
+                                                streams_boost::asio::placeholders::bytes_transferred));
     }
 
     void TCPConnection::shutdown_conn(bool makeConnReadOnly)
