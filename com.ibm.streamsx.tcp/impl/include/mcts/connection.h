@@ -14,7 +14,6 @@
 #include "mcts/socket.h"
 #include "mcts/tls_socket.h"
 
-
 #include <streams_boost/asio.hpp>
 #include <streams_boost/array.hpp>
 #include <streams_boost/shared_ptr.hpp>
@@ -27,6 +26,15 @@
 
 namespace mcts 
 {
+
+    /// Set the profile of the connect
+    /// CLIENT: Connections to specified address and port
+    /// SERVER: Listens on specified address and port
+    enum Role { CLIENT, SERVER };
+
+    /// Sets the security tyoe
+    /// NONE: Plain TCP Connection
+    /// TLS: TLSv1.2 TCP Connection
     enum ConnectionSecurity { NONE, TLS };
 
     /// Represents a single connection from a client.
@@ -38,7 +46,7 @@ namespace mcts
     	/// Construct a connection with the given io_service.
         /// @param ioService the IO service
         /// @param handler the handler
-        TCPConnection(ConnectionSecurity sec, streams_boost::asio::io_service& ioService, uint32_t blockSize, outFormat_t outFormat,
+        TCPConnection(ConnectionSecurity sec, Role role, streams_boost::asio::io_service& ioService, uint32_t blockSize, outFormat_t outFormat,
                       DataHandler & dHandler,  InfoHandler & iHandler,
                       const std::string & certificate,
                       const std::string & key);
@@ -77,6 +85,9 @@ namespace mcts
         // The socket that handles network operations 
         SocketPtr socket_;
 
+        // The role of the socket
+        Role role_;
+
         /// The handler used to process the incoming request.
         DataHandler & dataHandler_;
 
@@ -84,7 +95,7 @@ namespace mcts
         InfoHandler & infoHandler_;
 
         /// Buffer for incoming data.
-        streams_boost::array<char, 8192> buffer_;
+        streams_boost::array<char, 65536> buffer_;
 
         /// The incoming data item
         DataItem dataItem_;
@@ -107,15 +118,18 @@ namespace mcts
 
         bool isShutdown_;
 
-        static SocketPtr createConnection(ConnectionSecurity sec, streams_boost::asio::io_service& ioService, const std::string & certificate, const std::string & key)
+        static SocketPtr createConnection(ConnectionSecurity sec, mcts::Role role, streams_boost::asio::io_service& ioService, const std::string & certificate, const std::string & key)
         {
-            if(sec == TLS) 
+            // Non-TLS Client & Server
+            if(sec != TLS) 
                 return SocketPtr(new Socket(ioService));
-            else if(key == "")
+            // TLS & Client
+            else if(role == CLIENT) 
                 return SocketPtr(new TLSSocket(ioService, certificate));
-            else
+            // TLS & Server
+            else 
                 return SocketPtr(new TLSSocket(ioService, certificate, key));
-        }   
+        }
     };
     
     typedef streams_boost::shared_ptr<TCPConnection> TCPConnectionPtr;

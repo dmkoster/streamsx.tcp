@@ -114,21 +114,24 @@ namespace mcts
     {
       if(!e)
       {
-
-        mapConnection(conn);
+        conn->start();
+        mapClientConnection(conn);
         metricsHandler_.handleMetrics(0, (int64_t)mcts::TCPConnection::getNumberOfConnections());
       }
     }
 
     void TCPServer::handleAccept(TCPAcceptorPtr & acceptor, streams_boost::system::error_code const & e)
     {
+        SPLAPPTRC(L_TRACE, "Handling Accept " << e.message(), "Server");
         if (!e) {
         	if (TCPConnection::getNumberOfConnections()<=maxConnections_) {
+            SPLAPPTRC(L_TRACE, "Under Connection Limit", "Server");
         		acceptor->nextConnection()->start();
 
         		// Add a new connection to the response connection map, but only if duplex communication is required
         		if (isDuplexConnection_) {
-					   mapConnection(acceptor->nextConnection());
+              SPLAPPTRC(L_TRACE, "Connection is Duplex", "Server");
+					    mapConnection(acceptor->nextConnection());
         		}
         		// Update number of open connections metric
         		metricsHandler_.handleMetrics(0, (int64_t)mcts::TCPConnection::getNumberOfConnections());
@@ -173,7 +176,7 @@ namespace mcts
           // The function for the socket to call back on once it's finished any operations around it's accept
           Socket::accept_complete_func func = streams_boost::bind(&TCPServer::handleAccept, this, acceptor, streams_boost::asio::placeholders::error);
 
-        	acceptor->nextConnection().reset(new TCPConnection(securityType_, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_, certificateFile_, privateKeyFile_));
+        	acceptor->nextConnection().reset(new TCPConnection(securityType_, roleType_, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_, certificateFile_, privateKeyFile_));
           acceptor->getAcceptor().async_accept(acceptor->nextConnection()->socket()->getUnderlyingSocket(),
             streams_boost::bind(&Socket::handleAccept, acceptor->nextConnection()->socket(), func, streams_boost::asio::placeholders::error)
             );
@@ -183,16 +186,15 @@ namespace mcts
     template<outFormat_t Format>
     void TCPServer::handleWrite(SPL::blob & raw, std::string const & ipAddress, uint32_t port)
     {
-		TCPConnectionWeakPtrMap::iterator iter = broadcastResponse_ ? findFirstConnection() : findConnection(createConnectionStr(ipAddress, port));
+      SPLAPPTRC(L_TRACE, "Handling Write To " << ipAddress << ":" << port, "Server");
 
-    	if(iter == connMap_.end()) {
-			 if(!broadcastResponse_) 
-        errorHandler_.handleError(streams_boost::system::error_code(streams_boost::asio::error::connection_aborted), 0, ipAddress, port);
-    	}
+		  TCPConnectionWeakPtrMap::iterator iter = broadcastResponse_ ? findFirstConnection() : findConnection(createConnectionStr(ipAddress, port));
+      bool serverConnFound = (iter != connMap_.end());
 
-		else {
-			AsyncDataItemPtr asyncDataItemPtr = streams_boost::make_shared<AsyncDataItem>(errorHandler_);
-			asyncDataItemPtr->setData<Format>(raw);
+		  if(iter != connMap_.end())
+      {
+			  AsyncDataItemPtr asyncDataItemPtr = streams_boost::make_shared<AsyncDataItem>(errorHandler_);
+			  asyncDataItemPtr->setData<Format>(raw);
 
     		do {
 				TCPConnectionWeakPtr connWeakPtr = iter->second;
@@ -240,8 +242,70 @@ namespace mcts
 				else {
 					iter = unmapConnection(iter);
 				}
-			} while (broadcastResponse_ && (iter != connMap_.end()));
-    	}
+			 } while (broadcastResponse_ && (iter != connMap_.end()));
+      }
+
+      TCPConnectionPtrMap::iterator clientIter = broadcastResponse_ ? findFirstClientConnection() : findClientConnection(createConnectionStr(ipAddress, port));
+      bool clientConnFound = (clientIter != clientConnMap_.end());
+
+      if(clientIter != clientConnMap_.end())
+      {
+        AsyncDataItemPtr asyncDataItemPtr = streams_boost::make_shared<AsyncDataItem>(errorHandler_);
+        asyncDataItemPtr->setData<Format>(raw);
+
+        do 
+        {
+          TCPConnectionPtr connPtr = clientIter->second;
+          TCPConnectionWeakPtr connWeakPtr = TCPConnectionWeakPtr(connPtr);
+          if(connPtr && connPtr->socket()->isOpen())
+          {
+            uint32_t * numOutstandingWritesPtr = connPtr->getNumOutstandingWritesPtr();
+            /// Check if client consumes data from a socket
+            if (*numOutstandingWritesPtr <= maxUnreadResponseCount_) 
+            {
+              __sync_fetch_and_add(numOutstandingWritesPtr, 1);
+
+              if(Format == mcts::block) {
+                connPtr->socket()->async_write(asyncDataItemPtr->getBuffers(), 
+                  streams_boost::bind(&AsyncDataItem::handleError, asyncDataItemPtr,
+                              streams_boost::asio::placeholders::error, streams_boost::asio::placeholders::bytes_transferred,
+                              connPtr->remoteIp(), connPtr->remotePort(), connWeakPtr)
+                );
+
+              }
+              else {
+                connPtr->socket()->async_write(asyncDataItemPtr->getBuffer(), 
+                  streams_boost::bind(&AsyncDataItem::handleError, asyncDataItemPtr,
+                              streams_boost::asio::placeholders::error, streams_boost::asio::placeholders::bytes_transferred,
+                              connPtr->remoteIp(), connPtr->remotePort(), connWeakPtr)
+                );
+              }
+
+              clientIter++;
+            }
+            else
+            {
+              connPtr->shutdown_conn(makeConnReadOnly_);
+              if(makeConnReadOnly_)
+              {
+                clientIter++;
+              }
+              else
+              {
+                clientIter = unmapConnection(clientIter);
+              }
+              errorHandler_.handleError(streams_boost::system::error_code(streams_boost::asio::error::would_block), 0, ipAddress, port, connWeakPtr);
+            }
+          }
+        } while (broadcastResponse_ && (clientIter != clientConnMap_.end()));
+      }
+
+      if(!clientConnFound && !serverConnFound)
+      {
+        if(!broadcastResponse_) 
+          errorHandler_.handleError(streams_boost::system::error_code(streams_boost::asio::error::connection_aborted), 0, ipAddress, port);
+      }
+
 
     }
 
@@ -252,6 +316,7 @@ namespace mcts
     void TCPServer::mapConnection(TCPConnectionPtr const & connPtr)
     {
     	std::string connStr = createConnectionStr(connPtr->remoteIp(), connPtr->remotePort());
+      SPLAPPTRC(L_TRACE,"Connection String " << connStr, "Server");
 
 		#if (((STREAMS_BOOST_VERSION / 100) % 1000) < 53)
 			streams_boost::mutex::scoped_lock scoped_lock(mutex_);
@@ -259,7 +324,21 @@ namespace mcts
 			streams_boost::unique_lock<streams_boost::mutex> scoped_lock(mutex_);
 		#endif
 
-		connMap_[connStr] = connPtr;
+		  connMap_[connStr] = connPtr;
+    }
+
+    void TCPServer::mapClientConnection(TCPConnectionPtr const & connPtr)
+    {
+      std::string connStr = createConnectionStr(connPtr->remoteIp(), connPtr->remotePort());
+      SPLAPPTRC(L_TRACE,"Connection String " << connStr, "Server");
+
+    #if (((STREAMS_BOOST_VERSION / 100) % 1000) < 53)
+      streams_boost::mutex::scoped_lock scoped_lock(mutex_);
+    #else
+      streams_boost::unique_lock<streams_boost::mutex> scoped_lock(mutex_);
+    #endif
+
+      clientConnMap_[connStr] = connPtr;
     }
 
     TCPConnectionWeakPtrMap::iterator TCPServer::unmapConnection(TCPConnectionWeakPtrMap::iterator iter)
@@ -271,6 +350,17 @@ namespace mcts
 		#endif
 
 		return connMap_.erase(iter);
+    }
+
+    TCPConnectionPtrMap::iterator TCPServer::unmapConnection(TCPConnectionPtrMap::iterator iter)
+    {
+      #if (((STREAMS_BOOST_VERSION / 100) % 1000) < 53)
+        streams_boost::mutex::scoped_lock scoped_lock(mutex_);
+      #else
+        streams_boost::unique_lock<streams_boost::mutex> scoped_lock(mutex_);
+      #endif
+
+      return clientConnMap_.erase(iter);
     }
 
     TCPConnectionWeakPtrMap::iterator TCPServer::findConnection(std::string const & connStr)
@@ -295,11 +385,34 @@ namespace mcts
 		return connMap_.begin();
     }
 
+    TCPConnectionPtrMap::iterator TCPServer::findClientConnection(std::string const & connStr)
+    {
+      #if (((STREAMS_BOOST_VERSION / 100) % 1000) < 53)
+        streams_boost::mutex::scoped_lock scoped_lock(mutex_);
+      #else
+        streams_boost::unique_lock<streams_boost::mutex> scoped_lock(mutex_);
+      #endif
+
+      return clientConnMap_.find(connStr);
+
+    }
+
+    TCPConnectionPtrMap::iterator TCPServer::findFirstClientConnection()
+    {
+      #if (((STREAMS_BOOST_VERSION / 100) % 1000) < 53)
+        streams_boost::mutex::scoped_lock scoped_lock(mutex_);
+      #else
+        streams_boost::unique_lock<streams_boost::mutex> scoped_lock(mutex_);
+      #endif
+
+      return clientConnMap_.begin();
+    }
+
     void TCPServer::createAcceptor(std::string const & address, uint32_t port)
 	  {
     	TCPAcceptorPtr acceptor(new TCPAcceptor(ioServicePool_.get_io_service(), address, port));
 
-    	acceptor->nextConnection().reset(new TCPConnection(securityType_, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_, certificateFile_, privateKeyFile_));
+    	acceptor->nextConnection().reset(new TCPConnection(securityType_, roleType_, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_, certificateFile_, privateKeyFile_));
 
       Socket::accept_complete_func func = streams_boost::bind(&TCPServer::handleAccept, this, acceptor, streams_boost::asio::placeholders::error);
 		  acceptor->getAcceptor().async_accept(acceptor->nextConnection()->socket()->getUnderlyingSocket(),
@@ -316,7 +429,7 @@ namespace mcts
     void TCPServer::connect(std::string const & address, uint32_t port)
     {
       streams_boost::asio::ip::tcp::endpoint endpoint(streams_boost::asio::ip::address::from_string(address), port);
-      TCPConnectionPtr conn = TCPConnectionPtr(new TCPConnection(securityType_, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_, certificateFile_, privateKeyFile_));
+      TCPConnectionPtr conn = TCPConnectionPtr(new TCPConnection(securityType_, roleType_, ioServicePool_.get_io_service(), blockSize_, outFormat_, dataHandler_, infoHandler_, certificateFile_, privateKeyFile_));
       Socket::connect_complete_func func = streams_boost::bind(&TCPServer::handleConnect, this, conn, streams_boost::asio::placeholders::error);
       conn->socket()->getUnderlyingSocket().async_connect(endpoint, streams_boost::bind(&Socket::handleConnect, conn->socket(), func, streams_boost::asio::placeholders::error));
     }

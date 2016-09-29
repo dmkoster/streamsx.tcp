@@ -26,12 +26,8 @@
 
 namespace mcts 
 {
-    /// Set the profile of the server
-    /// CLIENT: Connections to specified address and port
-    /// SERVER: Listens on specified address and port
-    enum Role { CLIENT, SERVER };
-
 	typedef std::tr1::unordered_map<std::string, TCPConnectionWeakPtr> TCPConnectionWeakPtrMap;
+    typedef std::tr1::unordered_map<std::string, TCPConnectionPtr> TCPConnectionPtrMap;
 
     /// Class for multi-threaded TCP server
     class TCPServer
@@ -77,13 +73,19 @@ namespace mcts
 
         /// Add new connection to a map of connections
         void mapConnection(TCPConnectionPtr const & connPtr);
+        void mapClientConnection(TCPConnectionPtr const & connPtr);
 
         /// Remove non-valid connection from a map of connections
         TCPConnectionWeakPtrMap::iterator unmapConnection(TCPConnectionWeakPtrMap::iterator iter);
+        TCPConnectionPtrMap::iterator unmapConnection(TCPConnectionPtrMap::iterator iter);
 
-        /// Find a connection in a map of connections
+        /// Find a connection in a map of connections (server)
         TCPConnectionWeakPtrMap::iterator findConnection(std::string const & connStr);
         TCPConnectionWeakPtrMap::iterator findFirstConnection();
+
+        /// Find a connection in a map of connections (client)
+        TCPConnectionPtrMap::iterator findClientConnection(std::string const & connStr);
+        TCPConnectionPtrMap::iterator findFirstClientConnection();
 
     private:
         /// Create an acceptor
@@ -159,6 +161,9 @@ namespace mcts
 
         /// TCPConnection map to handle duplex communication
         TCPConnectionWeakPtrMap connMap_;
+
+        /// TCPConnection map to handle all client connections, exist for duration
+        TCPConnectionPtrMap clientConnMap_;
 
         streams_boost::mutex mutex_;
     };  
